@@ -117,6 +117,8 @@ function App() {
   const [walletAddress, setWalletAddress] = useState("");
   const [publicKey, setPublicKey] = useState("");
 
+  const connect = () => {};
+
   const disconnect = () => {
     setWalletApi(null);
     setWalletAddress("");
@@ -218,8 +220,11 @@ function App() {
               e.preventDefault();
               if (walletApi) {
                 try {
+                  const payloadHex = Buffer.from(payload, "utf-8").toString(
+                    "hex"
+                  );
                   await walletApi.cip95
-                    .signData(publicKey, payload)
+                    .signData(publicKey, payloadHex)
                     .then((signature) => {
                       console.log("Signature:", signature);
                       setSignature(signature);
