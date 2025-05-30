@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Address, PublicKey } from "@emurgo/cardano-serialization-lib-asmjs";
+import {
+  Address,
+  PublicKey,
+  RewardAddress,
+  Credential,
+} from "@emurgo/cardano-serialization-lib-asmjs";
 import { Buffer } from "buffer";
 import { useState } from "react";
 
@@ -115,12 +120,12 @@ function App() {
   const [payload, setPayload] = useState("");
   const [signature, setSignature] = useState("");
   const [walletAddress, setWalletAddress] = useState("");
-  const [publicKey, setPublicKey] = useState("");
+  const [stakeKey, setStakeKey] = useState("");
 
   const disconnect = () => {
     setWalletApi(null);
     setWalletAddress("");
-    setPublicKey("");
+    setStakeKey("");
     setSignature("");
     setPayload("");
   };
@@ -178,10 +183,11 @@ function App() {
                         const addressFromBytes = Address.from_bytes(
                           Buffer.from(rawAddress, "hex")
                         );
+
+                        const network =
+                          addressFromBytes.network_id as unknown as number;
                         const address = addressFromBytes.to_bech32(
-                          addressFromBytes.network_id() == 0
-                            ? "addr"
-                            : "addr_test"
+                          network == 0 ? "addr" : "addr_test"
                         );
                         setWalletAddress(address);
 
@@ -190,17 +196,31 @@ function App() {
                           await enabled.cip95.getRegisteredPubStakeKeys();
                         if (registeredPubStakeKeys.length < 1) {
                           console.error("No public stake keys registered");
-                          return;
                         } else {
-                          setPublicKey(
-                            PublicKey.from_hex(registeredPubStakeKeys[0])
-                              .hash()
-                              .to_hex()
-                          );
-                        }
+                          const registeredPubStakeKey =
+                            registeredPubStakeKeys[0];
+                          const publicKeyHash = PublicKey.from_hex(
+                            registeredPubStakeKey
+                          ).hash();
+                          const publicKeyCredential =
+                            Credential.from_keyhash(publicKeyHash);
 
-                        setWalletApi(enabled);
-                        console.log(`${name} enabled`, enabled);
+                          if (network === 1) {
+                            setStakeKey(
+                              RewardAddress.new(1, publicKeyCredential)
+                                .to_address()
+                                .to_hex()
+                            );
+                          } else {
+                            setStakeKey(
+                              RewardAddress.new(0, publicKeyCredential)
+                                .to_address()
+                                .to_hex()
+                            );
+                          }
+                          setWalletApi(enabled);
+                          console.log(`${name} enabled`, enabled, stakeKey);
+                        }
                       }
                 }
               >
@@ -210,8 +230,8 @@ function App() {
           ))}
       </div>
       {walletAddress && <p>Your wallet address: {walletAddress}</p>}
-      {publicKey && <p>Your public key: {publicKey}</p>}
-      {walletApi && publicKey && (
+      {stakeKey && <p>Your stake key: {stakeKey}</p>}
+      {walletApi && stakeKey && (
         <>
           <form
             onSubmit={async (e) => {
@@ -222,7 +242,7 @@ function App() {
                     "hex"
                   );
                   await walletApi.cip95
-                    .signData(publicKey, payloadHex)
+                    .signData(stakeKey, payloadHex)
                     .then((signature) => {
                       console.log("Signature:", signature);
                       setSignature(signature);
@@ -244,9 +264,13 @@ function App() {
             <button type="submit">Sign Payload</button>
           </form>
 
-          <p>
-            Signature: <pre>{signature}</pre>
-          </p>
+          {signature && (
+            <>
+              <h2>Success! 🎉🎉🎉</h2>
+              <code>{JSON.stringify(signature, null, 2)}</code>
+              <p>Above value can be copied from console.</p>
+            </>
+          )}
         </>
       )}
     </div>
