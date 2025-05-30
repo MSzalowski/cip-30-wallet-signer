@@ -117,8 +117,6 @@ function App() {
   const [walletAddress, setWalletAddress] = useState("");
   const [publicKey, setPublicKey] = useState("");
 
-  const connect = () => {};
-
   const disconnect = () => {
     setWalletApi(null);
     setWalletAddress("");
